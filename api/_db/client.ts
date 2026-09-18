@@ -1,8 +1,20 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
+import dns from 'dns';
 import pg from 'pg';
 import { neon } from '@neondatabase/serverless';
+import { Agent, setGlobalDispatcher } from 'undici';
+
+// Node's built-in fetch (undici) ignores --dns-result-order and can hang
+// on ETIMEDOUT when a host has AAAA records but the network's IPv6 route
+// is dead/dark. Force IPv4-only resolution for outbound fetch (used by
+// the Neon serverless HTTP driver) to avoid this.
+setGlobalDispatcher(new Agent({
+  connect: {
+    lookup: (hostname, options, cb) => dns.lookup(hostname, { ...options, family: 4 }, cb),
+  },
+}));
 
 const configuredDatabaseUrl = process.env.DATABASE_URL?.trim();
 const isPlaceholderDatabaseUrl = configuredDatabaseUrl?.includes('ep-example.')
